@@ -190,6 +190,3 @@ filled_mn_int$weekend[index]<-"Weekdays"
 
 xyplot(steps ~ interval | weekend, filled_mn_int, type = "l", layout = c(1, 2), ylab = "Number of Steps", xlab = "Interval", main = "Time Series for Weekend and Weekday Activity Patterns")
 ```
-setwd("D:/Dimon/Coursera/Reproducible_Research/Project1/to_Git")
-library(knitr)
-knit2html("PA1_template.html")
