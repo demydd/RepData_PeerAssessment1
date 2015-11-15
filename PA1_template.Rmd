@@ -2,24 +2,194 @@
 title: "Reproducible Research: Peer Assessment 1"
 output: 
   html_document:
-    keep_md: true
+  keep_md: true
 ---
 
+To set up necessary packages and libraries:
+```{r echo=TRUE,message=FALSE}
+  #to install packages if it is required
+  if (!require("dplyr")){
+    install.packages("dplyr")
+  }
+  if (!require("ggplot2")){
+    install.packages("ggplot2")
+  }
+
+  if (!require("lubridate")){
+    install.packages("lubridate")
+  }
+  if (!require("lattice")){
+    install.packages("lattice")
+  }
+
+  #to install libraries if it is required
+  if (!require(dplyr)){
+    library(dplyr)  
+  }
+
+  if (!require(ggplot2)){
+    library(ggplot2)  
+  }  
+  if (!require(lubridate)){
+    library(lubridate)
+  }
+  if (!require(lattice)){
+    library(lattice)
+  }
+
+
+```
+
+###**Copy data source file into work directory!!!**#####
 
 ## Loading and preprocessing the data
 
+The data loading is with: read.csv() function.
+To change data into tbl format to analyze further:
+
+```{r}
+setwd("D:/Dimon/Coursera/Reproducible_Research/Project1/to_Git")
+data<-read.csv("activity.csv")
+tbl_data<-tbl_df(data)
+rm(data)
+head(tbl_data)
+```
 
 
 ## What is mean total number of steps taken per day?
 
+- to remove NA from the subset
+```{r}
+rm_na<-filter(tbl_data,!is.na(steps))
+```
+- group data, summarize and make the histogram:
+```{r}
+by_date<-group_by(rm_na,date) 
+total<-summarize(by_date,total=sum(steps))
+with(total,hist(total,10,col=date
+                ,main="Total step frequancy per one day"
+                ,xlab="The total steps per one day"))
 
+```
+
+- calculate mean and median:
+
+```{r}
+mean<-mean(total$total)
+median<-median(total$total)
+```
+
+Mean is `r mean`.    
+Median is `r median`.
 
 ## What is the average daily activity pattern?
+* group data by interval
+* calculate mean by interval
+* draw a plot
+```{r}
+intervals<-group_by(rm_na,interval)
+mn_intervals<-summarize(intervals,steps=mean(steps))
 
 
+g<-ggplot(data=mn_intervals,aes(x=interval,y=steps))+geom_line()+ xlab("Interval")
+g<-g+ylab("Step mean q-ty ")
+g
+```
+
+calculate the maximum number of steps:
+```{r}
+max_interval<-mn_intervals[which(mn_intervals$steps==max(mn_intervals$steps)),]$interval
+```
+
+the interval with the maximum number of steps is from `r max_interval` and `r max_interval+5`.  
+the max step q-ty is `r max(mn_intervals$steps)`
 
 ## Imputing missing values
 
+calculate missing values:
+```{r}
+na_steps<-is.na(tbl_data$steps)
+na_qty<-sum(na_steps)
+```
+Total numbe of missing values is `r na_qty`
+
+* Join mean interval steps across all days to the original dat set tbl_data:
+```{r}
+join_tbl<-left_join(tbl_data,mn_intervals,by="interval")
+```
+
+* Assigning the missing stpes field with the mean steps of that interval
+```{r}
+join_tbl[na_steps,]$steps.x<-join_tbl[na_steps,]$steps.y
+```
+
+* Selecting the needed data set from the joined data set
+```{r}
+filled_df<-select(join_tbl,steps=steps.x,date,interval)
+```
+
+* grouping the selected data set by date
+```{r}
+filled_by_date<-group_by(filled_df,date)
+```
+* New total stpes taken per day
+```{r}
+filled_total<-summarize(filled_by_date,total=sum(steps))
+with(filled_total,hist(total,10,col=date,
+                main="Frequency of the total steps in one day",
+                xlab="The total steps in one day"))
+```
+
+* New average and median total steps taken per day
+```{r}
+filled_mean<-summarize(filled_total,mean(total))
+filled_median<-summarize(filled_total,quantile(total,probs=0.5))
+```
+After filling the NA records, the new mean total steps taken per day is `r filled_mean`.  
+The new median is `r filled_median`.  
+
+```{r}
+
+par(mfrow = c(1, 2))
+hist(total$total, breaks = 10, xlab = "Steps", main = "Initial Histogram", ylim = c(0, 20))
+hist(filled_total$total, breaks = 10, xlab = "Steps", main = "NA removed Histogram", ylim = c(0, 20))
+
+```
+
+
+The new data set differes from the original one (with missing values).Application of avg numbers leads to a higher distribution (look at the 6th interval).  
+Besides averages are the same but medians differ. On the whole, median and avg in both data sets are almost the same.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+* add new factor coloumn (weekends, weekdays)
+```{r}
+filled_df<-mutate(filled_df, weekend=wday(as.Date(filled_df$date), label=TRUE) %in% c('Sat','Sun'))
+```
+
+* group the new filled data frame by weekend and interval
+```{r}
+filled_by_int_wk<-group_by(filled_df,weekend,interval)
+```
+* Calcating the average interval mean based on groups
+```{r}
+filled_mn_int<-summarize(filled_by_int_wk,steps=mean(steps))
+
+m<-filled_mn_int$weekend==TRUE
+index<-which(m %in% c(TRUE))
+filled_mn_int$weekend[index]<-"Weekends"
+
+m<-filled_mn_int$weekend==FALSE
+index<-which(m %in% c(TRUE))
+filled_mn_int$weekend[index]<-"Weekdays"
+
+```
+* Plotting the averge interval steps taken per day for the weekday and weekend individually
+```{r}
+
+xyplot(steps ~ interval | weekend, filled_mn_int, type = "l", layout = c(1, 2), ylab = "Number of Steps", xlab = "Interval", main = "Time Series for Weekend and Weekday Activity Patterns")
+```
+setwd("D:/Dimon/Coursera/Reproducible_Research/Project1/to_Git")
+library(knitr)
+knit2html("PA1_template.html")
