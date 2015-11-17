@@ -2,7 +2,7 @@
 title: "Reproducible Research: Peer Assessment 1"
 output: 
   html_document:
-  keep_md: true
+    keep_md: yes
 ---
 
 To set up necessary packages and libraries:
@@ -35,15 +35,7 @@ To set up necessary packages and libraries:
 ```
 
 ```
-## Warning in library(package, lib.loc = lib.loc, character.only = TRUE,
-## logical.return = TRUE, : there is no package called 'lubridate'
-```
-
-```
-## package 'lubridate' successfully unpacked and MD5 sums checked
-## 
-## The downloaded binary packages are in
-## 	C:\Users\Demyd\AppData\Local\Temp\RtmpY5w9TG\downloaded_packages
+## Warning: package 'lubridate' was built under R version 3.2.2
 ```
 
 ```r
@@ -62,13 +54,6 @@ To set up necessary packages and libraries:
   if (!require(lubridate)){
     library(lubridate)
   }
-```
-
-```
-## Warning: package 'lubridate' was built under R version 3.2.2
-```
-
-```r
   if (!require(lattice)){
     library(lattice)
   }
@@ -83,48 +68,24 @@ To change data into tbl format to analyze further:
 
 
 ```r
-setwd("D:/Demyd/Personal/Coursera/Reproducible Research/Project")
-```
-
-```
-## Error in setwd("D:/Demyd/Personal/Coursera/Reproducible Research/Project"): cannot change working directory
-```
-
-```r
+setwd("D:/Dimon/Coursera/Reproducible_Research/Project1/to_Git")
 data<-read.csv("activity.csv")
-```
-
-```
-## Warning in file(file, "rt"): cannot open file 'activity.csv': No such file
-## or directory
-```
-
-```
-## Error in file(file, "rt"): cannot open the connection
-```
-
-```r
 tbl_data<-tbl_df(data)
-```
-
-```
-## Error: data is not a data frame
-```
-
-```r
 rm(data)
-```
-
-```
-## Warning in rm(data): object 'data' not found
-```
-
-```r
 head(tbl_data)
 ```
 
 ```
-## Error in head(tbl_data): object 'tbl_data' not found
+## Source: local data frame [6 x 3]
+## 
+##   steps       date interval
+##   (int)     (fctr)    (int)
+## 1    NA 2012-10-01        0
+## 2    NA 2012-10-01        5
+## 3    NA 2012-10-01       10
+## 4    NA 2012-10-01       15
+## 5    NA 2012-10-01       20
+## 6    NA 2012-10-01       25
 ```
 
 
@@ -135,82 +96,152 @@ head(tbl_data)
 ```r
 rm_na<-filter(tbl_data,!is.na(steps))
 ```
-
-```
-## Error in filter_(.data, .dots = lazyeval::lazy_dots(...)): object 'tbl_data' not found
-```
 - group data, summarize and make the histogram:
 
 ```r
 by_date<-group_by(rm_na,date) 
-```
-
-```
-## Error in group_by_(.data, .dots = lazyeval::lazy_dots(...), add = add): object 'rm_na' not found
-```
-
-```r
 total<-summarize(by_date,total=sum(steps))
-```
-
-```
-## Error in summarise_(.data, .dots = lazyeval::lazy_dots(...)): object 'by_date' not found
-```
-
-```r
 with(total,hist(total,10,col=date
                 ,main="Total step frequancy per one day"
                 ,xlab="The total steps per one day"))
 ```
 
-```
-## Error in with(total, hist(total, 10, col = date, main = "Total step frequancy per one day", : object 'total' not found
-```
+![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png) 
 
 - calculate mean and median:
 
 
 ```r
 mean<-mean(total$total)
-```
-
-```
-## Error in mean(total$total): object 'total' not found
-```
-
-```r
 median<-median(total$total)
 ```
 
+Mean is 1.0766189 &times; 10<sup>4</sup>.    
+Median is 10765.
+
+## What is the average daily activity pattern?
+* group data by interval
+* calculate mean by interval
+* draw a plot
+
+```r
+intervals<-group_by(rm_na,interval)
+mn_intervals<-summarize(intervals,steps=mean(steps))
+
+
+g<-ggplot(data=mn_intervals,aes(x=interval,y=steps))+geom_line()+ xlab("Interval")
+g<-g+ylab("Step mean q-ty ")
+g
 ```
-## Error in median(total$total): object 'total' not found
+
+![plot of chunk unnamed-chunk-6](figure/unnamed-chunk-6-1.png) 
+
+calculate the maximum number of steps:
+
+```r
+max_interval<-mn_intervals[which(mn_intervals$steps==max(mn_intervals$steps)),]$interval
 ```
 
+the interval with the maximum number of steps is from 835 and 840.  
+the max step q-ty is 206.1698113
+
+## Imputing missing values
+
+calculate missing values:
+
+```r
+na_steps<-is.na(tbl_data$steps)
+na_qty<-sum(na_steps)
+```
+Total numbe of missing values is 2304
+
+* Join mean interval steps across all days to the original dat set tbl_data:
+
+```r
+join_tbl<-left_join(tbl_data,mn_intervals,by="interval")
+```
+
+* Assigning the missing stpes field with the mean steps of that interval
+
+```r
+join_tbl[na_steps,]$steps.x<-join_tbl[na_steps,]$steps.y
+```
+
+* Selecting the needed data set from the joined data set
+
+```r
+filled_df<-select(join_tbl,steps=steps.x,date,interval)
+```
+
+* grouping the selected data set by date
+
+```r
+filled_by_date<-group_by(filled_df,date)
+```
+* New total stpes taken per day
+
+```r
+filled_total<-summarize(filled_by_date,total=sum(steps))
+with(filled_total,hist(total,10,col=date,
+                main="Frequency of the total steps in one day",
+                xlab="The total steps in one day"))
+```
+
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13-1.png) 
+
+* New average and median total steps taken per day
+
+```r
+filled_mean<-summarize(filled_total,mean(total))
+filled_median<-summarize(filled_total,quantile(total,probs=0.5))
+```
+After filling the NA records, the new mean total steps taken per day is 1.0766189 &times; 10<sup>4</sup>.  
+The new median is 1.0766189 &times; 10<sup>4</sup>.  
 
 
+```r
+par(mfrow = c(1, 2))
+hist(total$total, breaks = 10, xlab = "Steps", main = "Initial Histogram", ylim = c(0, 20))
+hist(filled_total$total, breaks = 10, xlab = "Steps", main = "NA removed Histogram", ylim = c(0, 20))
+```
+
+![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15-1.png) 
 
 
+The new data set differes from the original one (with missing values).Application of avg numbers leads to a higher distribution (look at the 6th interval).  
+Besides averages are the same but medians differ. On the whole, median and avg in both data sets are almost the same.
 
 
+## Are there differences in activity patterns between weekdays and weekends?
 
+* add new factor coloumn (weekends, weekdays)
 
+```r
+filled_df<-mutate(filled_df, weekend=wday(as.Date(filled_df$date), label=TRUE) %in% c('Sat','Sun'))
+```
 
+* group the new filled data frame by weekend and interval
 
+```r
+filled_by_int_wk<-group_by(filled_df,weekend,interval)
+```
+* Calcating the average interval mean based on groups
 
+```r
+filled_mn_int<-summarize(filled_by_int_wk,steps=mean(steps))
 
+m<-filled_mn_int$weekend==TRUE
+index<-which(m %in% c(TRUE))
+filled_mn_int$weekend[index]<-"Weekends"
 
+m<-filled_mn_int$weekend==FALSE
+index<-which(m %in% c(TRUE))
+filled_mn_int$weekend[index]<-"Weekdays"
+```
+* Plotting the averge interval steps taken per day for the weekday and weekend individually
 
+```r
+xyplot(steps ~ interval | weekend, filled_mn_int, type = "l", layout = c(1, 2), ylab = "Number of Steps", xlab = "Interval", main = "Time Series for Weekend and Weekday Activity Patterns")
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+![plot of chunk unnamed-chunk-19](figure/unnamed-chunk-19-1.png) 
